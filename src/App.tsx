@@ -6,6 +6,7 @@ import {
     useReactTable,
 } from "@tanstack/react-table";
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { useInView } from 'react-intersection-observer';
 
 import { usePersonData } from "./use-person-data";
 import { Person } from "./types";
@@ -28,9 +29,9 @@ const columns = [
 ];
 
 function App() {
-    const parentRef = React.useRef(null)
+    const scrollRef = React.useRef<HTMLTableSectionElement>(null)
 
-    const { data: personData, fetchNextPage, isFetchingNextPage, hasNextPage } = usePersonData();
+    const { data: personData, fetchNextPage } = usePersonData();
     const table = useReactTable({
         data: personData,
         columns,
@@ -41,39 +42,23 @@ function App() {
 
     const virtualizer = useVirtualizer({
         count: rows.length,
-        getScrollElement: () => parentRef.current,
+        getScrollElement: () => scrollRef.current,
         estimateSize: () => 45,
         overscan: 5
     })
 
-    const virtualItems = virtualizer.getVirtualItems();
+    const { ref, inView } = useInView();
 
     React.useEffect(() => {
-        const [lastItem] = [...virtualItems].reverse()
-
-        if (!lastItem) {
-            return
-        }
-
-        if (
-            lastItem.index >= rows.length - 1 &&
-            hasNextPage &&
-            !isFetchingNextPage
-        ) {
+        if (inView) {
             fetchNextPage()
         }
-    }, [
-        hasNextPage,
-        fetchNextPage,
-        rows.length,
-        isFetchingNextPage,
-        virtualItems,
-    ])
+    }, [inView, fetchNextPage, personData])
 
     return (
-        <main className="flex flex-col items-center gap-8 py-16 max-w-[1280px] mx-auto" ref={parentRef}>
+        <main className="flex flex-col items-center gap-8 py-16 max-w-[1280px] mx-auto">
             <h1 className="text-4xl font-bold">Hello, world!</h1>
-            <table className="table">
+            <div className="h-dvh"><table className="table">
                 <thead>
                     {table.getHeaderGroups().map((headerGroup) => (
                         <tr key={headerGroup.id}>
@@ -90,16 +75,13 @@ function App() {
                         </tr>
                     ))}
                 </thead>
-                <tbody>
+                <tbody ref={scrollRef}>
                     {virtualizer.getVirtualItems().map((virtualRow, index) => {
-                        const isLoaderRow = virtualRow.index > rows.length - 1
                         const row = rows[virtualRow.index];
 
                         return (
                             <tr key={row.id} style={{
                                 height: `${virtualRow.size}px`,
-                                transform: `translateY(${virtualRow.start - index * virtualRow.size
-                                    }px)`,
                             }}>
                                 {row.getVisibleCells().map(cell => (
                                     <td key={cell.id}>
@@ -109,8 +91,12 @@ function App() {
                             </tr>
                         )
                     })}
+                    <tr ref={ref}>
+                        <td colSpan={columns.length}>Loading More....</td>
+                    </tr>
+
                 </tbody>
-            </table>
+            </table></div>
         </main >
     );
 }

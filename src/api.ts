@@ -1,6 +1,6 @@
 import { makeData } from "./types";
 
-const defaultData = makeData(1_000);
+const defaultData = makeData(10_000);
 
 export const fetchQueryData = async (page: number, pageSize: number) => {
     console.log('fetchQueryData', page, pageSize);
